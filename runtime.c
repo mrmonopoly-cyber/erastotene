@@ -1,9 +1,9 @@
-#pragma once
 #include "runtime.h"
 
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define INITIAL_THREAD_NUMBER 10
 
@@ -18,6 +18,7 @@ struct thread{
     pthread_t thread_id;
     enum THREAD_STATUS status;
     void *(*thread_fun)(void *);
+    void *args;
 };
 
 struct program_status{
@@ -31,25 +32,23 @@ struct program_status{
 static struct program_status env = {
     .num_thread=INITIAL_THREAD_NUMBER,
     .next_free=0,
+    .next_batch=NULL,
 };
 
-void *default_routine(void * args)
-{
-    return NULL;
-}
-
 //public
-struct thread *new_thread(void *(*thread_fun)(void *))
+struct thread *new_thread(void *(*thread_fun)(void *),void *args)
 {
     unsigned int index=env.next_free;
+    struct thread * new_thread= &env.threads[index];
     env.next_free++;
-    env.threads[index].status=READY;
-    env.threads[index].thread_fun = thread_fun;
-    return &env.threads[index];
+    new_thread->status=READY;
+    new_thread->thread_fun = thread_fun;
+    new_thread->args=args;
+    return new_thread;
 }
 
 int start_thread(struct thread * thread){
-    if(pthread_create(&thread->thread_id, NULL , thread->thread_fun, NULL)!=0){
+    if(pthread_create(&thread->thread_id, NULL , thread->thread_fun, thread->args)!=0){
         fprintf(stderr, "runtime error, thread creation failed\n");
         return -1;
     }
@@ -57,7 +56,19 @@ int start_thread(struct thread * thread){
     return 0;
 }
 
-int kill_thread(struct thread *thread)
+int kill_thread_sync(struct thread *thread)
 {
     return 0;
+}
+
+int kill_thread_async(struct thread *thread)
+{
+    return 0;
+}
+
+int read_data(unsigned int fd)
+{
+    int data;
+    read(fd, &data, sizeof(data));
+    return data;
 }
