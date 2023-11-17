@@ -69,28 +69,28 @@ void *search_element(struct list *this,void *element)
 }
 
 //test
-void print_list(struct list *this)
-{
-    if(this){
-        printf("%d\t",*(int *)this->element);
-        return print_list(this->next);
-    }
-    printf("\n");
-}
-
-unsigned int comp_int(void *a,void *b){
-    int a_int = *(int *)a;
-    int b_int = *(int *)b;
-    return a<b;
-}
-
-int main()
-{
-    // struct list * this= new_list(5, sizeof(int),comp_int);
-    struct list *this=NULL;
-    for (int i=0; i<5; i++) {
-        list_add_element(this,&i);
-    }
-    print_list(this);
-    return 0;
-}
+// void print_list(struct list *this)
+// {
+//     if(this){
+//         printf("%d\t",*(int *)this->element);
+//         return print_list(this->next);
+//     }
+//     printf("\n");
+// }
+//
+// unsigned int comp_int(void *a,void *b){
+//     int a_int = *(int *)a;
+//     int b_int = *(int *)b;
+//     return a<b;
+// }
+//
+// int main()
+// {
+//     // struct list * this= new_list(5, sizeof(int),comp_int);
+//     struct list *this=NULL;
+//     for (int i=0; i<5; i++) {
+//         list_add_element(this,&i);
+//     }
+//     print_list(this);
+//     return 0;
+// }

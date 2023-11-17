@@ -107,3 +107,8 @@ void send(int connection,void *buffer, unsigned int buffer_size)
 {
 
 }
+
+void IO_management(enum IO mode, void *buffer, unsigned int buffer_size)
+{
+
+}
