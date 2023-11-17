@@ -24,7 +24,7 @@ void *eratostene(void *args){
     struct thread *child=NULL;
     int node_prime;
     int connection_parent,connection_child;
-    unsigned int buffer;
+    unsigned int buffer=0;
 
     node_prime = input->prime_number;
     current_thread = input->current_thread;
@@ -34,6 +34,7 @@ void *eratostene(void *args){
         switch (node_prime) {
             case FIRST_PRIME:
                 IO_management(INPUT, &buffer, sizeof(buffer));
+                printf("%d\n",buffer);
                 break;
             default:
                 recv(connection_parent, &buffer, sizeof(buffer));

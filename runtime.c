@@ -96,7 +96,7 @@ int new_connection(struct thread *thread1, struct thread *thread2)
     char socket_name[MAX_SOCKET_NAME_LENGTH] = {};
 
     sprintf(socket_name,"%d", stack.number_of_connections);
-    fd_connection=open(socket_name,O_CREAT | O_WRONLY);
+    fd_connection=open(socket_name,O_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
     if(fd_connection<0){
         return fd_connection;
@@ -114,15 +114,36 @@ int new_connection(struct thread *thread1, struct thread *thread2)
 
 void recv(int connection,void *buffer, unsigned int buffer_size)
 {
-
+    printf("receiving data from parent connection= %d\n",connection);
+    read(connection, buffer, buffer_size);
+    printf("received data from parent\n");
 }
 
 void send(int connection,void *buffer, unsigned int buffer_size)
 {
-
+    int data = *(int *)buffer;
+    printf("sending data to child connection= %d : data =%d\n",connection,data);
+    write(connection, buffer, buffer_size);
+    printf("sended data to child\n");
 }
 
 void IO_management(enum IO mode, void *buffer, unsigned int buffer_size)
 {
-
+    
+    switch (buffer_size) {
+        case sizeof(short):
+            fscanf(stdin,"%hd",(short *)buffer);
+            break;
+        case sizeof(int):
+            fscanf(stdin,"%d",(int *)buffer);
+            break;
+        case sizeof(long):
+            fscanf(stdin,"%ld",(long *)buffer);
+            break;
+        default:
+            fprintf(stderr, "input data not read\n");
+            break;
+    }
+    
+    fflush(stdin);
 }
