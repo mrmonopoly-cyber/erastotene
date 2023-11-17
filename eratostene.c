@@ -44,7 +44,7 @@ void *eratostene(void *args){
                 input_data_child.prime_number=buffer;
                 input_data_child.current_thread=current_thread;
                 child=new_thread(eratostene, &input_data_child);
-                start_thread(child);
+                start_thread_async(child);
                 connection_child = new_connection(current_thread, child);
             }
             send(connection_child, &buffer, sizeof(buffer));
@@ -63,6 +63,6 @@ int main(){
     struct thread *start = new_thread(eratostene, &input);
     input.current_thread=start;
 
-    start_thread(start);
+    start_thread_sync(start);
     return 0;
 }

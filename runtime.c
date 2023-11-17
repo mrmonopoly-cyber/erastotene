@@ -50,7 +50,16 @@ unsigned int comparison_function(void *el1,void *el2){
     return t1.thread_id < t2.thread_id;
 }
 
+static int start_thread(struct thread * thread){
+    if(pthread_create(&thread->thread_id, NULL , thread->thread_fun, thread->args)!=0){
+        fprintf(stderr, "runtime error, thread creation failed\n");
+        return -1;
+    }
+    thread->status=WORKING;
+    return 0;
+}
 //public
+
 struct thread *new_thread(void *(*thread_fun)(void *),void *args)
 {
     if(!stack.threads){
@@ -67,13 +76,18 @@ struct thread *new_thread(void *(*thread_fun)(void *),void *args)
     return new_thread;
 }
 
-int start_thread(struct thread * thread){
-    if(pthread_create(&thread->thread_id, NULL , thread->thread_fun, thread->args)!=0){
-        fprintf(stderr, "runtime error, thread creation failed\n");
-        return -1;
+void start_thread_sync(struct thread * thread)
+{
+    if(!start_thread(thread)){
+        pthread_join(thread->thread_id, NULL);
     }
-    thread->status=WORKING;
-    return 0;
+}
+
+void start_thread_async(struct thread * thread)
+{
+    if(!start_thread(thread)){
+        pthread_detach(thread->thread_id);
+    }
 }
 
 int new_connection(struct thread *thread1, struct thread *thread2)
