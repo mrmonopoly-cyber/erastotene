@@ -26,6 +26,12 @@ void insert_element_full(struct list *this, unsigned int size_list, void *elemen
         return;
     }
     
+    if(!this->next){
+        this->next=malloc(sizeof(*this));
+        this->next->next=NULL;
+        this->next->comparison_function=comparison_function;
+    }
+    
     return insert_element_full(this->next,size_list, element, comparison_function);
 }
 
@@ -66,6 +72,14 @@ void *search_element(struct list *this,void *element)
         return search_element(this->next, element);
     }
     return NULL;
+}
+
+void print_list(struct list *this)
+{
+    if(this){
+        printf("%d\t",*(int *)this->element);
+        print_list(this->next);
+    }
 }
 
 //test

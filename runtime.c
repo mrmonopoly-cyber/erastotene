@@ -9,7 +9,7 @@
 #include "runtime.h"
 
 #define INITIAL_THREAD_NUMBER 10
-#define MAX_SOCKET_NAME_LENGTH 4
+#define MAX_SOCKET_NAME_LENGTH 8
 
 enum THREAD_STATUS {
     WORKING,
@@ -24,18 +24,21 @@ struct channel{
 struct thread{
     enum THREAD_STATUS status;
     struct list *channels;
-    unsigned int num_channels;
+    unsigned char num_channels;
     pthread_t thread_id;
+    unsigned int id_stack;
     void *(*thread_fun)(void *);
 };
 
 struct stack{
     struct list *threads;
+    unsigned char num_thread;
 };
 
 //private
 static struct stack stack ={
     .threads=NULL,
+    .num_thread=0,
 };
 
 unsigned int comparison_function_thread(void *el1,void *el2){
@@ -60,14 +63,13 @@ static int start_thread(struct thread * thread,void *args){
     return 0;
 }
 
-static void full_name_socket(struct thread *this, char *conv_name, int offset)
+static void full_name_socket(struct thread *this, char *conv_name, unsigned char offset)
 {
-    sprintf(conv_name, "%ld", this->thread_id);
-    sprintf(conv_name, "%d", this->num_channels);
+    conv_name[0]=this->id_stack+1;
+    conv_name[1]=offset+1;
 }
 
 //public
-
 struct thread *new_thread(void *(*thread_fun)(void *))
 {
     if(!stack.threads){
@@ -79,8 +81,10 @@ struct thread *new_thread(void *(*thread_fun)(void *))
     new_thread->status=READY;
     new_thread->channels=NULL;
     new_thread->thread_fun = thread_fun;
+    new_thread->id_stack=stack.num_thread;
     list_add_element(stack.threads,new_thread);
-
+    
+    stack.num_thread++;
     return new_thread;
 }
 
@@ -103,6 +107,7 @@ int add_channel(struct thread * this)
     char conv_name[MAX_SOCKET_NAME_LENGTH] = {};
     full_name_socket(this,conv_name,this->num_channels);
     int real_file = open(conv_name, O_CREAT | O_RDWR,S_IRWXU);
+    ftruncate(real_file, 0);
     if(real_file<0){
         fprintf(stderr, "error creating file");
         return -1;
@@ -118,34 +123,35 @@ int add_channel(struct thread * this)
     return this->num_channels-1;
 }
 
-void read_channel(struct thread *this,int channel_name,void *buffer,unsigned int  buffer_size)
+void read_channel(struct thread *this,unsigned char channel_name,void *buffer,unsigned int  buffer_size)
 {
-    struct channel *ch = search_element(this->channels, &channel_name);
     char conv_name[MAX_SOCKET_NAME_LENGTH] = {};
     full_name_socket(this,conv_name,channel_name);
     int real_file = open(conv_name, O_RDONLY | O_RDWR,S_IRWXU);
     if(real_file<0){
-        fprintf(stderr, "error opening file");
+        fprintf(stderr, "read,error opening file\n");
         return;
     }
 
-    read(real_file, buffer, buffer_size);
-
+    while(read(real_file, buffer, buffer_size)<=0){}
+    ftruncate(real_file, 0);
     close(real_file);
 }
 
-void send_to_channel(struct thread *this,int channel_name, void *buffer, unsigned int buffer_size)
+void send_to_channel(struct thread *this,unsigned char channel_name, void *buffer, unsigned int buffer_size)
 {
-    struct channel *ch = search_element(this->channels, &channel_name);
     char conv_name[MAX_SOCKET_NAME_LENGTH] = {};
     full_name_socket(this,conv_name,channel_name);
     int real_file = open(conv_name, O_RDONLY | O_RDWR,S_IRWXU);
     if(real_file<0){
-        fprintf(stderr, "error opening file");
+        fprintf(stderr, "write,error opening file\n");
         return;
     }
 
-    write(real_file, buffer, buffer_size);
+    if(write(real_file, buffer, buffer_size)<0){
+        fprintf(stderr, "error writing\n");
+        return;
+    }
   
     close(real_file);
 }
