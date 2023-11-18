@@ -63,6 +63,11 @@ void free_buffer(void *ele)
 
 }
 
+void print (void * ele)
+{
+    printf("%d\t",*(int *)ele);
+}
+
 int main(){
     struct thread *start = new_thread(eratostene);
     struct eratostene_input era;
@@ -72,7 +77,7 @@ int main(){
     era.node_prime=FIRST_PRIME;
     start_thread_async(start,&era);
     int buffer=FIRST_PRIME;
-    result = new_list(1, sizeof(buffer), comp_int,free_buffer);
+    result = new_list(1, sizeof(buffer), comp_int,free_buffer,print);
     list_add_element(result, &buffer);
     printf("waiting number\n");
     scanf("%d",&buffer);

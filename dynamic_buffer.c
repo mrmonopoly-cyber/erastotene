@@ -4,161 +4,155 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define INCREASE_SIZE_FACTOR 2
 
 struct list{
-    void *element;
-    unsigned int size_element;
-    unsigned int size_list;
-    struct list *next;
     unsigned int (*comparison_function) (void *,void *);
-    void (*free_element) (void *element);
+    void (*free_element) (void *);
+    void (*print_ele) (void *);
+    struct list *root;
+    void *elements;
+    unsigned int capacity;
+    unsigned int num_eles;
+    unsigned int ele_size;
 };
 
-//private
-void insert_element_full(struct list *this, unsigned int size_list, void *element, unsigned int (*comparison_function) (void *,void *)){
-    if(!this){
-        this=malloc(sizeof(*this));
-        this->next=NULL;
-        this->comparison_function=comparison_function;
-    }
-    if(!this->element){
-        this->element=element;
-        this->size_list=size_list;
-        return;
-    }
-    
-    if(!this->next){
-        this->next=malloc(sizeof(*this));
-        this->next->next=NULL;
-        this->next->comparison_function=comparison_function;
-    }
-    
-    return insert_element_full(this->next,size_list, element, comparison_function);
-}
-
 //public
-
-struct list *new_list(unsigned int size, unsigned int size_element, 
+struct list *new_list(unsigned int size,unsigned int size_element, 
         unsigned int (*comparison_function) (void *,void *),
-        void (*free_element) (void *element))
+        void (*free_element) (void *),
+        void (*print_element) (void *))
 {
-    struct list *new_list=malloc(sizeof(*new_list));
-    struct list *next=new_list;
-    new_list->element=NULL;
-    new_list->size_element=size_element;
-    new_list->comparison_function=comparison_function;
-    new_list->free_element=free_element;
-    while (size > 1){
-        next->next=malloc(sizeof(*next->next));
-        next->next->element=NULL;
-        next->next->size_element=size_element;
-        next->next->comparison_function=comparison_function;
-        next->next->next=NULL;
-        next=next->next;
-        size--;
-    }
+    struct list *new_list;
 
+    new_list = malloc(sizeof(*new_list));
+    if(!new_list){
+        fprintf(stderr, "dynamic_buffer,error malloc at line: %d\n",__LINE__);
+        goto error_malloc_new_list;
+    }
+    new_list->root=new_list;
+    new_list->capacity=size;
+    new_list->num_eles=0;
+    new_list->ele_size=size_element;
+    new_list->free_element=free_element;
+    new_list->comparison_function=comparison_function;
+    new_list->print_ele=print_element;
+    new_list->elements=malloc(size * size_element);
+    if(!new_list->elements){
+        fprintf(stderr, "dynamic_buffer,error malloc at line: %d\n",__LINE__);
+        goto error_malloc_elements;
+    }
     return new_list;
+
+error_malloc_elements:
+        free(new_list);
+error_malloc_new_list:
+        return NULL;
 }
+
 void list_add_element(struct list *this,void *element)
 {
-    void *copy_element = malloc(this->size_element);
-    memcpy(copy_element, element, this->size_element);
-    return insert_element_full(this,this->size_list+1, copy_element, this->comparison_function);
-    
+    if(!this || !element){
+        fprintf(stderr, "invalid list or element\n");
+        return;
+    }
+
+    void *buffer = (unsigned char *)this->elements;
+    unsigned int ele_size = this->ele_size;
+    unsigned int ele_posi = this->num_eles;
+
+    if(!this | !element){
+        return;
+    }
+
+    if(this->num_eles==this->capacity){
+        this->capacity*=INCREASE_SIZE_FACTOR;
+        this->elements=realloc(this->elements, this->capacity);
+    }
+    memcpy(buffer+(ele_posi*ele_size), element, ele_size);
+    this->num_eles++;
+    // free(element); TOFIX
 }
 
 void *search_element(struct list *this,void *element)
 {
-    if(this){
-        if(this->comparison_function(this->element,element)){
-            return this->element;
+    unsigned int i=0;
+    void *ele_l=NULL;
+
+    if(!this || !element){
+        return NULL;
+    }
+
+    for(i=0;i<this->capacity;i++){
+        ele_l=this->elements + i*this->ele_size;
+        if(this->comparison_function(ele_l,element)){
+            return ele_l;
         }
-        return search_element(this->next, element);
     }
     return NULL;
 }
 
-void *list_get_at_index(struct list *this, unsigned int index)
+void *list_get_at_index(struct list *this, unsigned int i)
 {
-    if(!this){
+    if(!this || (i>=this->capacity)){
         return NULL;
     }
 
-    if(!index){
-        return list_get_at_index(this, index-1);
-    }
-    return this->element;
+    return this->elements + (this->ele_size*i);
 }
 
 void list_remove_last_element(struct list *this)
 {
-    if(!this){
-        return;
-    }
-    struct list *temp=this;
-    struct list *temp_next= this->next ? this->next : NULL;
-    struct list *temp_next_next= (temp_next && this->next->next) ? this->next->next : NULL;
-    while(temp_next_next){
-        temp_next_next=temp_next_next->next;
-        temp_next=temp_next->next;
-        temp=temp->next;
-    }
+    void *ele_l=NULL;
+    unsigned int size_ele;
+    unsigned int index_last;
     
-    if(temp_next){
-        this->free_element(temp_next->element);
-        free(temp_next);
-        temp->next=NULL;
-    }else {
-        this->free_element(temp->element);
-        free(temp);
-    }
-}
-
-void list_clear_all(struct list *this)
-{
     if(!this){
         return;
     }
 
-    if(this->next){
-        list_clear_all(this->next);
-        this->next=NULL;
+    size_ele=this->ele_size;
+    index_last=this->num_eles-1;
+    ele_l = this->elements + (size_ele*index_last);
+    if(this->free_element){
+        this->free_element(ele_l);
     }
-    free(this);
+    memset(ele_l, 0x0, size_ele);
+}
+void list_clear_all(struct list *this){
+    void *ele;
+    unsigned int size_ele = this->ele_size;
+    unsigned int i=0;
+
+    if(!this){
+        return;
+    }
+
+    if(this->free_element){
+        for(i=0;i<this->num_eles;i++){
+            ele=this->elements + (i*size_ele);
+            this->free_element(ele);
+        }
+    }
+    memset(this->elements, 0x0, size_ele*this->num_eles);
+    this->num_eles=0;
 }
 
 void print_list(struct list *this)
 {
-    if(this){
-        printf("%d\t",*(int *)this->element);
-        print_list(this->next);
+    if(!this->print_ele){
+        return;
     }
-}
+    void *ele;
+    unsigned int size_ele = this->ele_size;
+    unsigned int i=0;
 
-//test
-// void print_list(struct list *this)
-// {
-//     if(this){
-//         printf("%d\t",*(int *)this->element);
-//         return print_list(this->next);
-//     }
-//     printf("\n");
-// }
-//
-// unsigned int comp_int(void *a,void *b){
-//     int a_int = *(int *)a;
-//     int b_int = *(int *)b;
-//     return a<b;
-// }
-//
-// int main()
-// {
-//     // struct list * this= new_list(5, sizeof(int),comp_int);
-//     struct list *this=NULL;
-//     for (int i=0; i<5; i++) {
-//         list_add_element(this,&i);
-//     }
-//     print_list(this);
-//     return 0;
-// }
+    if(!this){
+        return;
+    }
+
+    for(i=0;i<this->num_eles;i++){
+        ele=this->elements + (i*size_ele);
+        this->print_ele(ele);
+    }   
+}

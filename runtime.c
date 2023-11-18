@@ -145,7 +145,7 @@ struct thread *new_thread(void *(*thread_fun)(void *))
     if(!stack.threads){
         stack.threads=new_list(1, sizeof(struct stack), 
                 comparison_function_thread,
-                free_thread);
+                free_thread,NULL);
     }
 
     struct thread * new_thread=malloc(sizeof(*new_thread));
@@ -193,7 +193,7 @@ int add_channel(struct thread * this)
     channel->name_buffer=strtol(conv_name,NULL ,10);
     if(!this->channels){
         this->channels=new_list(1, sizeof(*channel), 
-                comparison_function_channel, free_channel);
+                comparison_function_channel, free_channel,NULL);
     }
     list_add_element(this->channels, channel);
     this->num_channels++;
