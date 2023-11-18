@@ -58,6 +58,11 @@ void *eratostene(void *args){
     return NULL;
 }
 
+void free_buffer(void *ele)
+{
+
+}
+
 int main(){
     struct thread *start = new_thread(eratostene);
     struct eratostene_input era;
@@ -67,7 +72,7 @@ int main(){
     era.node_prime=FIRST_PRIME;
     start_thread_async(start,&era);
     int buffer=FIRST_PRIME;
-    result = new_list(1, sizeof(buffer), comp_int);
+    result = new_list(1, sizeof(buffer), comp_int,free_buffer);
     list_add_element(result, &buffer);
     printf("waiting number\n");
     scanf("%d",&buffer);
@@ -79,5 +84,7 @@ int main(){
     printf("printing current numbers\n");
     print_list(result);
     printf("\n");
+    wait_thread(start);
+    while (1) {}
     return 0;
 }

@@ -11,6 +11,7 @@ struct list{
     unsigned int size_list;
     struct list *next;
     unsigned int (*comparison_function) (void *,void *);
+    void (*free_element) (void *element);
 };
 
 //private
@@ -37,13 +38,16 @@ void insert_element_full(struct list *this, unsigned int size_list, void *elemen
 
 //public
 
-struct list *new_list(unsigned int size, unsigned int size_element, unsigned int (*comparison_function) (void *,void *))
+struct list *new_list(unsigned int size, unsigned int size_element, 
+        unsigned int (*comparison_function) (void *,void *),
+        void (*free_element) (void *element))
 {
     struct list *new_list=malloc(sizeof(*new_list));
     struct list *next=new_list;
     new_list->element=NULL;
     new_list->size_element=size_element;
     new_list->comparison_function=comparison_function;
+    new_list->free_element=free_element;
     while (size > 1){
         next->next=malloc(sizeof(*next->next));
         next->next->element=NULL;
@@ -63,6 +67,7 @@ void list_add_element(struct list *this,void *element)
     return insert_element_full(this,this->size_list+1, copy_element, this->comparison_function);
     
 }
+
 void *search_element(struct list *this,void *element)
 {
     if(this){
@@ -72,6 +77,55 @@ void *search_element(struct list *this,void *element)
         return search_element(this->next, element);
     }
     return NULL;
+}
+
+void *list_get_at_index(struct list *this, unsigned int index)
+{
+    if(!this){
+        return NULL;
+    }
+
+    if(!index){
+        return list_get_at_index(this, index-1);
+    }
+    return this->element;
+}
+
+void list_remove_last_element(struct list *this)
+{
+    if(!this){
+        return;
+    }
+    struct list *temp=this;
+    struct list *temp_next= this->next ? this->next : NULL;
+    struct list *temp_next_next= (temp_next && this->next->next) ? this->next->next : NULL;
+    while(temp_next_next){
+        temp_next_next=temp_next_next->next;
+        temp_next=temp_next->next;
+        temp=temp->next;
+    }
+    
+    if(temp_next){
+        this->free_element(temp_next->element);
+        free(temp_next);
+        temp->next=NULL;
+    }else {
+        this->free_element(temp->element);
+        free(temp);
+    }
+}
+
+void list_clear_all(struct list *this)
+{
+    if(!this){
+        return;
+    }
+
+    if(this->next){
+        list_clear_all(this->next);
+        this->next=NULL;
+    }
+    free(this);
 }
 
 void print_list(struct list *this)
