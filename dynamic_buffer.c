@@ -50,19 +50,19 @@ error_malloc_new_list:
         return NULL;
 }
 
-void list_add_element(struct list *this,void *element)
+void *list_add_element(struct list *this,void *element)
 {
     if(!this || !element){
         fprintf(stderr, "invalid list or element\n");
-        return;
+        return NULL;
     }
 
-    void *buffer = (unsigned char *)this->elements;
+    void *buffer = this->elements;
     unsigned int ele_size = this->ele_size;
     unsigned int ele_posi = this->num_eles;
 
     if(!this | !element){
-        return;
+        return NULL;
     }
 
     if(this->num_eles==this->capacity){
@@ -71,7 +71,7 @@ void list_add_element(struct list *this,void *element)
     }
     memcpy(buffer+(ele_posi*ele_size), element, ele_size);
     this->num_eles++;
-    // free(element); TOFIX
+    return buffer + (ele_posi*ele_size);
 }
 
 void *search_element(struct list *this,void *element)
