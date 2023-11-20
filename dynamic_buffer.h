@@ -1,5 +1,4 @@
 #pragma once
-
 struct list;
 
 struct list *new_list(unsigned int size, unsigned int size_element, 
@@ -12,3 +11,4 @@ void *list_get_at_index(struct list *this, unsigned int index);
 void list_remove_last_element(struct list *this);
 void list_clear_all(struct list *this);
 void print_list(struct list *this);
+unsigned int list_get_num_ele(struct list *this);
