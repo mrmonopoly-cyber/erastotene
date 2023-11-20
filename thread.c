@@ -1,27 +1,23 @@
-#include <stdio.h>
 #define _GNU_SOURCE
+#include <stdio.h>
 #include <sched.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <signal.h>
+#include <string.h>
+#include <sys/mman.h>
 
 #include "thread.h"
 #include "dynamic_buffer.h"
 
-#define INITIAL_CAPACITY_SUSPEND_QUEUE 10
-#define INITIAL_CAPACITY_WORKING_QUEUE 4
+#define STACK_SIZE 1024 * 1024
 
 struct thread{
     enum THREAD_STATUS status;
     uint16_t id_thread;
-    uint16_t thread_timeout;
-    void *(*thread_fun)(void *);
+    void *thread_stack_top;
+    int (*thread_fun)(void *);
 };
-
-static uint64_t thrad_id=0;
-static struct list *suspended_thread;
-static struct list *working_thread;
-
 
 static unsigned int comparison_function_thread(void *thread_list,void *key)
 {
@@ -31,76 +27,69 @@ static unsigned int comparison_function_thread(void *thread_list,void *key)
     return id_thread==this->id_thread;
 }
 
-static void thread_free(void *thread){
-
-
-}
-static void check_initialization_suspend_queue()
+static int signal_thread(struct thread *this, uint8_t signal)
 {
-    if(!suspended_thread){
-        suspended_thread=new_list(INITIAL_CAPACITY_SUSPEND_QUEUE,sizeof(struct thread), 
-                comparison_function_thread, thread_free, NULL);
+    int error=0;
+    if((error=kill(this->id_thread, signal))){
+        fprintf(stderr, "failed to %d thread with id: %d\n",signal,this->id_thread);
     }
-
+    this->status=ZOMBIE;
+    return error;
 }
 
-static void check_initialization_working_queue()
+enum ACTION_ON_THREAD
 {
-    if(!suspended_thread){
-        working_thread=new_list(INITIAL_CAPACITY_WORKING_QUEUE,sizeof(struct thread), 
-                comparison_function_thread, thread_free, NULL);
-    }
+    SUSPEND,
+    WORK
+};
 
-}
 //public
-uint32_t new_thread(void *(*thread_fun)(void *), uint16_t timeout)
+struct thread *new_thread(int (*thread_fun)(void *))
 {
+    void * stack = mmap(NULL,STACK_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON, -1 ,0);   
+    struct thread * new_thread = mmap(NULL,sizeof(*new_thread), 
+            PROT_READ | PROT_WRITE , MAP_ANON, -1 ,0);   
 
-    return 0;
+    new_thread->thread_fun=thread_fun;
+    new_thread->thread_stack_top=stack+STACK_SIZE;
+    new_thread->status=READY;
+
+    return new_thread;
 }
 
-void thread_start(uint32_t thread_id);
-
-void thread_wait(uint32_t thread_id);
-
-void thread_suspend(uint32_t thread_id)
+void thread_start(struct thread * this,void *args)
 {
-    struct thread *this;
-    uint8_t index_ele=-1;
-
-    if(!working_thread){
-        return;
-    }
-
-    this=list_search_element(working_thread, &thread_id);
-    if(!this){
-        fprintf(stderr, "failed to suspend thread, no working thread present\n");
-        return;
-    }
-
-    check_initialization_suspend_queue();
-    
-    if ((index_ele=list_get_index_element(working_thread, &thread_id))<0){
-        fprintf(stderr, "failed to suspend thread, thread not found\n");
-        return;
-    }
-    
-    this=list_get_at_index(working_thread, index_ele);
-    
-    list_add_element(suspended_thread, this);
-    if(kill(thread_id, SIGSTOP)){
-        fprintf(stderr, "failed to suspend thread with id: %d\n",thread_id);
-        return;
-    }
-
-    if(list_clear_element(working_thread, &thread_id)){
-        fprintf(stderr, "failed to suspend thread, thread not found\n");
-        return;
-    }
+    this->id_thread=clone(this->thread_fun, this->thread_stack_top,  
+            CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD,args);
+     this->status=WORKING;
 }
 
-void thread_resume(uint32_t thread_id);
+void thread_wait(struct thread * this);
 
-void thread_kill(uint32_t thread_id);
+inline int thread_suspend(struct thread * this)
+{
+    return signal_thread(this, SIGSTOP );
+}
 
-THREAD_STATUS thread_status(uint32_t thread_id);
+inline int thread_resume(struct thread * this)
+{
+    return signal_thread(this, SIGCONT);
+}
+
+inline int thread_kill(struct thread * this)
+{
+    int error;
+    this->status=STOPPPING;
+    if((error=signal_thread(this, SIGKILL))){
+        return error;
+    }
+    munmap(this->thread_stack_top-STACK_SIZE,STACK_SIZE);
+    munmap(this,sizeof(*this));
+    
+    return error;
+}
+
+THREAD_STATUS thread_status(struct thread * this)
+{
+    return this->status;
+}

@@ -9,16 +9,18 @@ typedef enum THREAD_STATUS {
     ZOMBIE
 }THREAD_STATUS;
 
-uint32_t new_thread(void *(*thread_fun)(void *), uint16_t timeout);
+struct thread;
 
-void thread_start(uint32_t thread_id);
+struct thread *new_thread(int (*thread_fun)(void *));
 
-void thread_wait(uint32_t thread_id);
+void thread_start(struct thread *this,void *args);
 
-void thread_suspend(uint32_t thread_id);
+void thread_wait(struct thread *this);
 
-void thread_resume(uint32_t thread_id);
+int thread_suspend(struct thread* this);
 
-void thread_kill(uint32_t thread_id);
+int thread_resume(struct thread* this);
 
-THREAD_STATUS thread_status(uint32_t thread_id);
+int thread_kill(struct thread* this);
+
+THREAD_STATUS thread_status(struct thread* this);
