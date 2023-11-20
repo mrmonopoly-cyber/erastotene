@@ -53,7 +53,7 @@ void thread_free(void *thread)
     
 }
 
-struct thread *new_thread(void *(*thread_fun)(void *))
+uint16_t new_thread(void *(*thread_fun)(void *))
 {
     struct thread new_thread;
     uint32_t num_thread_in_stack = list_get_num_ele(stack.threads);
@@ -66,12 +66,13 @@ struct thread *new_thread(void *(*thread_fun)(void *))
     new_thread.thread_fun=thread_fun;
     new_thread.status=READY;
     new_thread.channels=NULL;
-    return list_add_element(stack.threads, &new_thread);
+    list_add_element(stack.threads, &new_thread);
+    return ;
 }
 
 void thread_start(struct thread *this)
 {
-    
+       
 }
 
 void thread_wait(struct thread *this)
