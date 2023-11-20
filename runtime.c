@@ -148,16 +148,13 @@ struct thread *new_thread(void *(*thread_fun)(void *))
                 free_thread,NULL);
     }
 
-    struct thread * new_thread=malloc(sizeof(*new_thread));
-
-    new_thread->status=READY;
-    new_thread->channels=NULL;
-    new_thread->thread_fun = thread_fun;
-    new_thread->id_stack=stack.num_thread;
-    list_add_element(stack.threads,new_thread);
-    
+    struct thread  new_thread;
+    new_thread.status=READY;
+    new_thread.channels=NULL;
+    new_thread.thread_fun = thread_fun;
+    new_thread.id_stack=stack.num_thread;
     stack.num_thread++;
-    return new_thread;
+    return list_add_element(stack.threads,&new_thread);
 }
 
 void start_thread_sync(struct thread * this, void *args)
