@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 
 #include "thread.h"
 #include "dynamic_buffer.h"
@@ -30,6 +31,9 @@ static unsigned int comparison_function_thread(void *thread_list,void *key)
 static int signal_thread(struct thread *this, uint8_t signal)
 {
     int error=0;
+    if(this->id_thread<=0){
+        return -1;
+    }
     if((error=kill(this->id_thread, signal))){
         fprintf(stderr, "failed to %d thread with id: %d\n",signal,this->id_thread);
     }
@@ -37,18 +41,18 @@ static int signal_thread(struct thread *this, uint8_t signal)
     return error;
 }
 
-enum ACTION_ON_THREAD
-{
-    SUSPEND,
-    WORK
-};
-
 //public
 struct thread *new_thread(int (*thread_fun)(void *))
 {
-    void * stack = mmap(NULL,STACK_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON, -1 ,0);   
+    void * stack = mmap(NULL,STACK_SIZE, PROT_READ | PROT_WRITE , MAP_ANON | MAP_PRIVATE, -1 ,0);   
+
     struct thread * new_thread = mmap(NULL,sizeof(*new_thread), 
-            PROT_READ | PROT_WRITE , MAP_ANON, -1 ,0);   
+            PROT_READ | PROT_WRITE , MAP_ANON | MAP_PRIVATE, -1 ,0);   
+
+    if (stack == MAP_FAILED || new_thread == MAP_FAILED) {
+        perror("mmap failed");
+        // Gestisci l'errore e restituisci un valore o esci
+    }
 
     new_thread->thread_fun=thread_fun;
     new_thread->thread_stack_top=stack+STACK_SIZE;
@@ -64,7 +68,13 @@ void thread_start(struct thread * this,void *args)
      this->status=WORKING;
 }
 
-void thread_wait(struct thread * this);
+void thread_wait(struct thread * this)
+{
+    int32_t status;
+    if(this->id_thread){
+        waitpid(this->id_thread, &status, 0); //0 indicate no options
+    }
+}
 
 inline int thread_suspend(struct thread * this)
 {
