@@ -8,6 +8,8 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 
+#include <stdlib.h> //TOFIX to remove
+
 #include "thread.h"
 #include "dynamic_buffer.h"
 
@@ -41,17 +43,31 @@ static int signal_thread(struct thread *this, uint8_t signal)
     return error;
 }
 
+struct input_st_fun{
+    struct thread *this;
+    void *args;
+};
+static int starting_function(void *data){
+    struct input_st_fun *input = (struct input_st_fun *)data;
+    struct thread *this=input->this;
+    void *args=input->args;
+    this->status=WORKING;
+    this->id_thread=gettid();
+    return this->thread_fun(args);
+}
+
 //public
 struct thread *new_thread(int (*thread_fun)(void *))
 {
-    void * stack = mmap(NULL,STACK_SIZE, PROT_READ | PROT_WRITE , MAP_ANON | MAP_PRIVATE, -1 ,0);   
+    void * stack = mmap(NULL,STACK_SIZE, PROT_READ | PROT_WRITE , 
+            MAP_ANONYMOUS | MAP_PRIVATE | MAP_STACK , -1 ,0);   
 
-    struct thread * new_thread = mmap(NULL,sizeof(*new_thread), 
-            PROT_READ | PROT_WRITE , MAP_ANON | MAP_PRIVATE, -1 ,0);   
-
+    struct thread * new_thread = malloc(sizeof(*new_thread));
     if (stack == MAP_FAILED || new_thread == MAP_FAILED) {
         perror("mmap failed");
         // Gestisci l'errore e restituisci un valore o esci
+        kill(SIGKILL,gettid());
+        return NULL;
     }
 
     new_thread->thread_fun=thread_fun;
@@ -63,8 +79,13 @@ struct thread *new_thread(int (*thread_fun)(void *))
 
 void thread_start(struct thread * this,void *args)
 {
-    this->id_thread=clone(this->thread_fun, this->thread_stack_top,  
-            CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD,args);
+     int pid=0;
+     struct input_st_fun data ={
+        .this=this,
+        .args=args,
+     };
+     pid=clone(starting_function, this->thread_stack_top,  
+            CLONE_VM | SIGCHLD,&data);
      this->status=WORKING;
 }
 
